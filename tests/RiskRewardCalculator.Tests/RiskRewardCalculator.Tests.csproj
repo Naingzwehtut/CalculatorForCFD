@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- If you have .NET 8 installed instead of .NET 10, change this to net8.0 -->
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- This is what lets the tests exercise the exact same calculation
+         classes the Blazor UI calls - the calculation engine has zero
+         dependency on Blazor, so it is testable like any plain C# library. -->
+    <ProjectReference Include="../../src/RiskRewardCalculator/RiskRewardCalculator.csproj" />
+  </ItemGroup>
+
+</Project>

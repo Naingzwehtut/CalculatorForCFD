@@ -1,0 +1,185 @@
+@* Pure input UI. Holds no calculation logic of its own - every value it edits
+   lives on the models owned by the parent page, and every edit raises
+   OnChanged so the parent can re-run the calculator service. *@
+
+<div class="card">
+    <h2 class="card-title">Trade Setup</h2>
+
+    <div class="field-grid">
+        <label class="field">
+            <span>Direction</span>
+            <select class="input" value="@Trade.Direction" @onchange="OnDirectionChanged">
+                <option value="@TradeDirection.Long">Long</option>
+                <option value="@TradeDirection.Short">Short</option>
+            </select>
+        </label>
+
+        <label class="field">
+            <span>Instrument Preset</span>
+            <select class="input" @onchange="OnPresetChanged">
+                @foreach (var preset in Presets)
+                {
+                    <option value="@preset.Name" selected="@(preset.Name == Instrument.Name)">@preset.Name</option>
+                }
+            </select>
+        </label>
+
+        <label class="field">
+            <span>Entry Price</span>
+            <input class="input" type="number" step="any" value="@Trade.EntryPrice"
+                   @oninput="e => UpdateDecimal(v => Trade.EntryPrice = v, e.Value)" />
+        </label>
+
+        <label class="field">
+            <span>Stop Loss Price</span>
+            <input class="input" type="number" step="any" value="@Trade.StopLossPrice"
+                   @oninput="e => UpdateDecimal(v => Trade.StopLossPrice = v, e.Value)" />
+        </label>
+
+        <label class="field">
+            <span>Take Profit Price</span>
+            <input class="input" type="number" step="any" value="@Trade.TakeProfitPrice"
+                   @oninput="e => UpdateDecimal(v => Trade.TakeProfitPrice = v, e.Value)" />
+        </label>
+    </div>
+</div>
+
+<div class="card">
+    <h2 class="card-title">Account &amp; Risk</h2>
+
+    <div class="field-grid">
+        <label class="field">
+            <span>Account Balance ($)</span>
+            <input class="input" type="number" step="any" value="@Risk.AccountBalance"
+                   @oninput="e => UpdateDecimal(v => Risk.AccountBalance = v, e.Value)" />
+        </label>
+
+        <label class="field">
+            <span>Risk Input Mode</span>
+            <select class="input" value="@Risk.Mode" @onchange="OnRiskModeChanged">
+                <option value="@RiskMode.PercentOfAccount">Risk % of account</option>
+                <option value="@RiskMode.FixedAmount">Fixed risk amount ($)</option>
+            </select>
+        </label>
+
+        @if (Risk.Mode == RiskMode.PercentOfAccount)
+        {
+            <label class="field">
+                <span>Risk %</span>
+                <input class="input" type="number" step="any" value="@Risk.RiskPercent"
+                       @oninput="e => UpdateDecimal(v => Risk.RiskPercent = v, e.Value)" />
+            </label>
+        }
+        else
+        {
+            <label class="field">
+                <span>Risk Amount ($)</span>
+                <input class="input" type="number" step="any" value="@Risk.RiskAmount"
+                       @oninput="e => UpdateDecimal(v => Risk.RiskAmount = v, e.Value)" />
+            </label>
+        }
+
+        <label class="field">
+            <span>Leverage (e.g. 30 for 1:30)</span>
+            <input class="input" type="number" step="any" value="@Risk.Leverage"
+                   @oninput="e => UpdateDecimal(v => Risk.Leverage = v, e.Value)" />
+        </label>
+    </div>
+</div>
+
+<div class="card">
+    <h2 class="card-title">Instrument / Contract Specification</h2>
+    <p class="hint">
+        These numbers come from your broker, not from this app. Different brokers use
+        different contract sizes and point values for the same symbol - always confirm
+        with your broker's contract specification before trusting the result.
+    </p>
+
+    <div class="field-grid">
+        <label class="field">
+            <span>Instrument Name</span>
+            <input class="input" type="text" value="@Instrument.Name"
+                   @oninput="e => Instrument.Name = e.Value?.ToString() ?? Instrument.Name" @onchange="RaiseChanged" />
+        </label>
+
+        <label class="field">
+            <span>Contract Size (units per lot)</span>
+            <input class="input" type="number" step="any" value="@Instrument.ContractSize"
+                   @oninput="e => UpdateDecimal(v => Instrument.ContractSize = v, e.Value)" />
+        </label>
+
+        <label class="field">
+            <span>Point/Pip Size</span>
+            <input class="input" type="number" step="any" value="@Instrument.PointSize"
+                   @oninput="e => UpdateDecimal(v => Instrument.PointSize = v, e.Value)" />
+        </label>
+
+        <label class="field">
+            <span>Point/Pip Value (per lot, $)</span>
+            <input class="input" type="number" step="any" value="@Instrument.PointValuePerLot"
+                   @oninput="e => UpdateDecimal(v => Instrument.PointValuePerLot = v, e.Value)" />
+        </label>
+
+        <label class="field">
+            <span>Price Display Decimals</span>
+            <input class="input" type="number" min="0" max="8" step="1" value="@Instrument.PriceDecimals"
+                   @oninput="e => UpdateInt(v => Instrument.PriceDecimals = v, e.Value)" />
+        </label>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TradeInput Trade { get; set; } = null!;
+    [Parameter, EditorRequired] public RiskSettings Risk { get; set; } = null!;
+    [Parameter, EditorRequired] public InstrumentSettings Instrument { get; set; } = null!;
+    [Parameter, EditorRequired] public IReadOnlyList<InstrumentSettings> Presets { get; set; } = Array.Empty<InstrumentSettings>();
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private Task RaiseChanged() => OnChanged.InvokeAsync();
+
+    private void UpdateDecimal(Action<decimal> setter, object? rawValue)
+    {
+        if (decimal.TryParse(rawValue?.ToString(), System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+        {
+            setter(parsed);
+        }
+        _ = RaiseChanged();
+    }
+
+    private void UpdateInt(Action<int> setter, object? rawValue)
+    {
+        if (int.TryParse(rawValue?.ToString(), out var parsed))
+        {
+            setter(parsed);
+        }
+        _ = RaiseChanged();
+    }
+
+    private Task OnDirectionChanged(ChangeEventArgs e)
+    {
+        Trade.Direction = Enum.Parse<TradeDirection>(e.Value?.ToString() ?? nameof(TradeDirection.Long));
+        return RaiseChanged();
+    }
+
+    private Task OnRiskModeChanged(ChangeEventArgs e)
+    {
+        Risk.Mode = Enum.Parse<RiskMode>(e.Value?.ToString() ?? nameof(RiskMode.PercentOfAccount));
+        return RaiseChanged();
+    }
+
+    private Task OnPresetChanged(ChangeEventArgs e)
+    {
+        var name = e.Value?.ToString();
+        var preset = Presets.FirstOrDefault(p => p.Name == name);
+        if (preset is not null)
+        {
+            Instrument.Name = preset.Name;
+            Instrument.PointSize = preset.PointSize;
+            Instrument.PointValuePerLot = preset.PointValuePerLot;
+            Instrument.ContractSize = preset.ContractSize;
+            Instrument.PriceDecimals = preset.PriceDecimals;
+        }
+        return RaiseChanged();
+    }
+}

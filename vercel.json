@@ -1,0 +1,21 @@
+{
+  "buildCommand": "curl -sSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh && chmod +x dotnet-install.sh && ./dotnet-install.sh -c 10.0 --install-dir ./dotnet-sdk && ./dotnet-sdk/dotnet publish src/RiskRewardCalculator/RiskRewardCalculator.csproj -c Release -o publish-output",
+  "outputDirectory": "publish-output/wwwroot",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/_framework/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/_framework/blazor.boot.json",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
+    }
+  ]
+}

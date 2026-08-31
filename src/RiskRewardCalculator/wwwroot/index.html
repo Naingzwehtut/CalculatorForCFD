@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>Risk &amp; Reward + Position Sizing Calculator</title>
+    <base href="/" />
+    <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+    <!-- Blazor mounts the whole app inside this single div. -->
+    <div id="app">
+        <!-- Shown briefly while the .NET runtime + app DLLs finish downloading. -->
+        <div class="boot-loading">
+            <div class="boot-spinner"></div>
+            <p>Loading calculator (downloading .NET WebAssembly runtime)&hellip;</p>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <span class="dismiss">🗙</span>
+    </div>
+
+    <!-- The only JavaScript this app ships, besides Blazor's own bootstrapper. -->
+    <script src="js/interop.js"></script>
+    <script src="_framework/blazor.webassembly.js"></script>
+</body>
+</html>

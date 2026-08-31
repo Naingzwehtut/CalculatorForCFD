@@ -1,0 +1,24 @@
+@inherits LayoutComponentBase
+
+<div class="app-shell">
+    <header class="app-header">
+        <div class="app-header-inner">
+            <span class="app-logo">📈</span>
+            <div>
+                <h1 class="app-title">Risk &amp; Reward + Position Sizing Calculator</h1>
+                <p class="app-subtitle">Runs entirely in your browser via Blazor WebAssembly - nothing is sent to a server.</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="app-main">
+        @Body
+    </main>
+
+    <footer class="app-footer">
+        <p>
+            Educational tool only - not financial advice. Verify all contract specifications
+            (contract size, point/pip value, point/pip size) with your own broker.
+        </p>
+    </footer>
+</div>

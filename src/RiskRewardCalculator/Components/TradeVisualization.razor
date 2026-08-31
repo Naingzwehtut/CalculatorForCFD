@@ -1,0 +1,136 @@
+@* Positions are derived purely from the three price values, so Long and Short
+   trades naturally lay out correctly without any direction-specific branching:
+   whichever price is highest ends up highest on the chart. *@
+
+<div class="card">
+    <h2 class="card-title">Trade Visualization</h2>
+
+    <svg class="trade-viz"
+         viewBox="0 0 400 220"
+         preserveAspectRatio="xMidYMid meet"
+         role="img"
+         aria-label="Price chart showing entry, stop loss, and take profit levels">
+
+        @if (HasValidPrices)
+        {
+            <!-- Reward zone: entry to take profit -->
+            <rect x="40"
+                  y="@F(Math.Min(EntryY, TakeProfitY))"
+                  width="320"
+                  height="@F(Math.Abs(EntryY - TakeProfitY))"
+                  class="zone zone-reward" />
+
+            <!-- Risk zone: entry to stop loss -->
+            <rect x="40"
+                  y="@F(Math.Min(EntryY, StopLossY))"
+                  width="320"
+                  height="@F(Math.Abs(EntryY - StopLossY))"
+                  class="zone zone-risk" />
+
+            <!-- Take profit line -->
+            <line x1="40"
+                  y1="@F(TakeProfitY)"
+                  x2="360"
+                  y2="@F(TakeProfitY)"
+                  class="level-line level-tp" />
+
+            <svg:text x="365"
+                      y="@F(TakeProfitY + 4)"
+                      class="level-label level-label-tp">
+                @($"TP {FormatPrice(TakeProfit)}")
+            </svg:text>
+
+            <!-- Entry line -->
+            <line x1="40"
+                  y1="@F(EntryY)"
+                  x2="360"
+                  y2="@F(EntryY)"
+                  class="level-line level-entry" />
+
+            <svg:text x="365"
+                      y="@F(EntryY + 4)"
+                      class="level-label level-label-entry">
+                @($"Entry {FormatPrice(Entry)}")
+            </svg:text>
+
+            <!-- Stop loss line -->
+            <line x1="40"
+                  y1="@F(StopLossY)"
+                  x2="360"
+                  y2="@F(StopLossY)"
+                  class="level-line level-sl" />
+
+            <svg:text x="365"
+                      y="@F(StopLossY + 4)"
+                      class="level-label level-label-sl">
+                @($"SL {FormatPrice(StopLoss)}")
+            </svg:text>
+        }
+        else
+        {
+            <svg:text x="200"
+                      y="110"
+                      text-anchor="middle"
+                      class="level-label">
+                Enter valid prices to see the chart
+            </svg:text>
+        }
+    </svg>
+
+    <div class="viz-legend">
+        <span class="legend-item">
+            <span class="legend-swatch legend-swatch-reward"></span>
+            Reward
+        </span>
+
+        <span class="legend-item">
+            <span class="legend-swatch legend-swatch-risk"></span>
+            Risk
+        </span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public decimal Entry { get; set; }
+    [Parameter] public decimal StopLoss { get; set; }
+    [Parameter] public decimal TakeProfit { get; set; }
+    [Parameter] public int PriceDecimals { get; set; } = 2;
+
+    private const double TopPadding = 20;
+    private const double BottomPadding = 20;
+    private const double ChartHeight = 220 - TopPadding - BottomPadding;
+
+    private bool HasValidPrices =>
+        Entry > 0 &&
+        StopLoss > 0 &&
+        TakeProfit > 0 &&
+        (Entry != StopLoss || Entry != TakeProfit);
+
+    private decimal MinPrice =>
+        Math.Min(Entry, Math.Min(StopLoss, TakeProfit));
+
+    private decimal MaxPrice =>
+        Math.Max(Entry, Math.Max(StopLoss, TakeProfit));
+
+    private decimal PriceRange =>
+        MaxPrice == MinPrice ? 1 : MaxPrice - MinPrice;
+
+    // Higher price -> smaller y (closer to the top of the SVG).
+    private double YFor(decimal price) =>
+        TopPadding +
+        (double)((MaxPrice - price) / PriceRange) *
+        ChartHeight;
+
+    private double EntryY => YFor(Entry);
+    private double StopLossY => YFor(StopLoss);
+    private double TakeProfitY => YFor(TakeProfit);
+
+    private string FormatPrice(decimal price) =>
+        price.ToString("N" + PriceDecimals);
+
+    private static string F(double value) =>
+        value.ToString(
+            "F2",
+            System.Globalization.CultureInfo.InvariantCulture
+        );
+}

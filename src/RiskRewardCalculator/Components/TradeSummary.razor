@@ -1,0 +1,30 @@
+@inject LocalStorageService LocalStorage
+
+<div class="card">
+    <h2 class="card-title">Trade Summary</h2>
+
+    <pre class="summary-text">@SummaryText</pre>
+
+    <button class="btn" @onclick="CopySummary">
+        @(_justCopied ? "Copied!" : "Copy Trade Summary")
+    </button>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string SummaryText { get; set; } = string.Empty;
+
+    private bool _justCopied;
+
+    private async Task CopySummary()
+    {
+        var success = await LocalStorage.CopyToClipboardAsync(SummaryText);
+        if (success)
+        {
+            _justCopied = true;
+            StateHasChanged();
+            await Task.Delay(1500);
+            _justCopied = false;
+            StateHasChanged();
+        }
+    }
+}

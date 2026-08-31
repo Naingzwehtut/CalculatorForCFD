@@ -1,0 +1,80 @@
+<div class="card">
+    <h2 class="card-title">Trade Details</h2>
+
+    <div class="field-grid">
+        <label class="field">
+            <span>Direction</span>
+            <select class="input" value="@Trade.Direction" @onchange="OnDirectionChanged">
+                <option value="@TradeDirection.Long">Long</option>
+                <option value="@TradeDirection.Short">Short</option>
+            </select>
+        </label>
+
+        <label class="field">
+            <span>Position Size (units/shares/coins)</span>
+            <input class="input" type="number" step="any" value="@PositionSize"
+                   @oninput="OnPositionSizeInput" />
+        </label>
+
+        <label class="field">
+            <span>Entry Price</span>
+            <input class="input" type="number" step="any" value="@Trade.EntryPrice"
+                   @oninput="e => UpdateDecimal(v => Trade.EntryPrice = v, e.Value)" />
+        </label>
+
+        <label class="field">
+            <span>Stop Loss Price</span>
+            <input class="input" type="number" step="any" value="@Trade.StopLossPrice"
+                   @oninput="e => UpdateDecimal(v => Trade.StopLossPrice = v, e.Value)" />
+        </label>
+
+        <label class="field">
+            <span>Take Profit Price</span>
+            <input class="input" type="number" step="any" value="@Trade.TakeProfitPrice"
+                   @oninput="e => UpdateDecimal(v => Trade.TakeProfitPrice = v, e.Value)" />
+        </label>
+    </div>
+
+    <p class="hint">
+        This tool assumes position size is expressed directly in base units (shares,
+        coins, ounces, etc.), so profit/loss = price distance &times; position size.
+        For leveraged FX/CFD instruments with a separate contract point value, use the
+        Position Size Calculator tab instead.
+    </p>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TradeInput Trade { get; set; } = null!;
+    [Parameter] public decimal PositionSize { get; set; }
+    [Parameter] public EventCallback<decimal> PositionSizeChanged { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private Task RaiseChanged() => OnChanged.InvokeAsync();
+
+    private void UpdateDecimal(Action<decimal> setter, object? rawValue)
+    {
+        if (decimal.TryParse(rawValue?.ToString(), System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+        {
+            setter(parsed);
+        }
+        _ = RaiseChanged();
+    }
+
+    private async Task OnPositionSizeInput(ChangeEventArgs e)
+    {
+        if (decimal.TryParse(e.Value?.ToString(), System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+        {
+            PositionSize = parsed;
+            await PositionSizeChanged.InvokeAsync(PositionSize);
+        }
+        await RaiseChanged();
+    }
+
+    private Task OnDirectionChanged(ChangeEventArgs e)
+    {
+        Trade.Direction = Enum.Parse<TradeDirection>(e.Value?.ToString() ?? nameof(TradeDirection.Long));
+        return RaiseChanged();
+    }
+}

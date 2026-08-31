@@ -1,0 +1,34 @@
+<div class="card results-card">
+    <h2 class="card-title">Results</h2>
+
+    @if (!IsValid)
+    {
+        <div class="validation-box" role="alert">
+            <strong>Fix the following before results can be calculated:</strong>
+            <ul>
+                @foreach (var error in Errors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
+    else
+    {
+        <dl class="result-grid">
+            @foreach (var row in Rows)
+            {
+                <div class="result-row @(row.Emphasize ? "result-row--emphasize" : "")">
+                    <dt>@row.Label</dt>
+                    <dd>@row.Value</dd>
+                </div>
+            }
+        </dl>
+    }
+</div>
+
+@code {
+    [Parameter] public bool IsValid { get; set; }
+    [Parameter] public IReadOnlyList<string> Errors { get; set; } = Array.Empty<string>();
+    [Parameter] public IReadOnlyList<ResultRow> Rows { get; set; } = Array.Empty<ResultRow>();
+}

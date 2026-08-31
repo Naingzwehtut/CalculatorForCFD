@@ -1,0 +1,241 @@
+@page "/"
+@inject IPositionSizeCalculator PositionSizeCalc
+@inject IRiskRewardCalculator RiskRewardCalc
+@inject InstrumentPresetProvider PresetProvider
+@inject LocalStorageService LocalStorage
+
+<div class="tool-tabs" role="tablist">
+    <button class="tool-tab @(_activeTool == CalculatorTool.PositionSize ? "tool-tab--active" : "")"
+            role="tab" aria-selected="@(_activeTool == CalculatorTool.PositionSize)"
+            @onclick="() => SwitchTool(CalculatorTool.PositionSize)">
+        Position Size Calculator
+    </button>
+    <button class="tool-tab @(_activeTool == CalculatorTool.RiskReward ? "tool-tab--active" : "")"
+            role="tab" aria-selected="@(_activeTool == CalculatorTool.RiskReward)"
+            @onclick="() => SwitchTool(CalculatorTool.RiskReward)">
+        Risk &amp; Reward Calculator
+    </button>
+</div>
+
+<div class="layout-grid">
+    <div class="layout-column">
+        @if (_activeTool == CalculatorTool.PositionSize)
+        {
+            <PositionSizeForm Trade="_trade" Risk="_risk" Instrument="_instrument" Presets="_presets"
+                               OnChanged="OnPositionSizeFormChanged" />
+        }
+        else
+        {
+            <RiskRewardForm Trade="_trade" PositionSize="_rrPositionSize"
+                             PositionSizeChanged="v => _rrPositionSize = v"
+                             OnChanged="OnRiskRewardFormChanged" />
+        }
+    </div>
+
+    <div class="layout-column">
+        @if (_activeTool == CalculatorTool.PositionSize)
+        {
+            <ResultsCard IsValid="_psResult.IsValid" Errors="_psResult.ValidationErrors" Rows="BuildPositionSizeRows()" />
+        }
+        else
+        {
+            <ResultsCard IsValid="_rrResult.IsValid" Errors="_rrResult.ValidationErrors" Rows="BuildRiskRewardRows()" />
+        }
+
+        <TradeVisualization Entry="_trade.EntryPrice" StopLoss="_trade.StopLossPrice"
+                             TakeProfit="_trade.TakeProfitPrice" PriceDecimals="_instrument.PriceDecimals" />
+
+        <TradeSummary SummaryText="@BuildSummaryText()" />
+    </div>
+</div>
+
+@code {
+    private const string StorageKey = "riskRewardCalculator.state.v1";
+
+    private CalculatorTool _activeTool = CalculatorTool.PositionSize;
+
+    private TradeInput _trade = new()
+    {
+        Direction = TradeDirection.Long,
+        EntryPrice = 2500m,
+        StopLossPrice = 2490m,
+        TakeProfitPrice = 2530m
+    };
+
+    private RiskSettings _risk = new()
+    {
+        AccountBalance = 10_000m,
+        Mode = RiskMode.PercentOfAccount,
+        RiskPercent = 1m,
+        Leverage = 1m
+    };
+
+    private InstrumentSettings _instrument = new()
+    {
+        Name = "XAU/USD (Gold)",
+        PointSize = 0.01m,
+        PointValuePerLot = 1m,
+        ContractSize = 100m,
+        PriceDecimals = 2
+    };
+
+    private decimal _rrPositionSize = 10m;
+
+    private IReadOnlyList<InstrumentSettings> _presets = Array.Empty<InstrumentSettings>();
+
+    private PositionSizeResult _psResult = PositionSizeResult.Invalid(new List<string> { "Enter your trade details." });
+    private RiskRewardResult _rrResult = RiskRewardResult.Invalid(new List<string> { "Enter your trade details." });
+
+    protected override async Task OnInitializedAsync()
+    {
+        _presets = PresetProvider.GetPresets();
+
+        var saved = await LocalStorage.LoadAsync<PersistedState>(StorageKey);
+        if (saved is not null)
+        {
+            ApplyPersistedState(saved);
+        }
+
+        RecalculatePositionSize();
+        RecalculateRiskReward();
+    }
+
+    private void SwitchTool(CalculatorTool tool) => _activeTool = tool;
+
+    private void RecalculatePositionSize() => _psResult = PositionSizeCalc.Calculate(_trade, _risk, _instrument);
+
+    private void RecalculateRiskReward() => _rrResult = RiskRewardCalc.Calculate(_trade, _rrPositionSize);
+
+    private async Task OnPositionSizeFormChanged()
+    {
+        RecalculatePositionSize();
+        await PersistStateAsync();
+    }
+
+    private async Task OnRiskRewardFormChanged()
+    {
+        RecalculateRiskReward();
+        await PersistStateAsync();
+    }
+
+    private List<ResultRow> BuildPositionSizeRows()
+    {
+        var r = _psResult;
+        return new List<ResultRow>
+        {
+            new("Risk Amount", $"${r.RiskAmount:N2}", Emphasize: true),
+            new("Risk % of Account", $"{r.RiskPercentOfAccount:N2}%"),
+            new("Stop Loss Distance", r.StopLossDistance.ToString("N" + _instrument.PriceDecimals)),
+            new("Take Profit Distance", r.TakeProfitDistance.ToString("N" + _instrument.PriceDecimals)),
+            new("Position Size", $"{r.PositionSizeInLots:N4} lots", Emphasize: true),
+            new("Position Size (units)", $"{r.PositionSizeInUnits:N2}"),
+            new("Potential Loss", $"-${r.PotentialLoss:N2}"),
+            new("Potential Profit", $"+${r.PotentialProfit:N2}"),
+            new("Risk / Reward", $"1 : {r.RiskRewardRatio:N2}", Emphasize: true),
+            new("Break-even Win Rate", $"{r.BreakEvenWinRatePercent:N2}%"),
+            new("Est. Margin Required", $"${r.EstimatedMarginRequired:N2}")
+        };
+    }
+
+    private List<ResultRow> BuildRiskRewardRows()
+    {
+        var r = _rrResult;
+        return new List<ResultRow>
+        {
+            new("Stop Loss Distance", r.StopLossDistance.ToString("N" + _instrument.PriceDecimals)),
+            new("Take Profit Distance", r.TakeProfitDistance.ToString("N" + _instrument.PriceDecimals)),
+            new("Risk / Reward", $"1 : {r.RiskRewardRatio:N2}", Emphasize: true),
+            new("Potential Loss", $"-${r.PotentialLoss:N2}"),
+            new("Potential Profit", $"+${r.PotentialProfit:N2}"),
+            new("Break-even Win Rate", $"{r.BreakEvenWinRatePercent:N2}%", Emphasize: true)
+        };
+    }
+
+    private string BuildSummaryText()
+    {
+        var direction = _trade.Direction.ToString().ToUpperInvariant();
+        var decimals = _instrument.PriceDecimals;
+
+        if (_activeTool == CalculatorTool.PositionSize)
+        {
+            var r = _psResult;
+            if (!r.IsValid)
+            {
+                return "Fix validation errors above to generate a summary.";
+            }
+
+            return
+                $"{direction} {_instrument.Name}\n\n" +
+                $"Entry       {_trade.EntryPrice.ToString("N" + decimals)}\n" +
+                $"Stop Loss   {_trade.StopLossPrice.ToString("N" + decimals)}\n" +
+                $"Take Profit {_trade.TakeProfitPrice.ToString("N" + decimals)}\n\n" +
+                $"Risk        ${r.RiskAmount:N2}\n" +
+                $"Reward      ${r.PotentialProfit:N2}\n\n" +
+                $"Risk/Reward 1:{r.RiskRewardRatio:N2}\n" +
+                $"Break-even  {r.BreakEvenWinRatePercent:N2}%\n\n" +
+                $"Position Size: {r.PositionSizeInLots:N4} lots ({r.PositionSizeInUnits:N2} units)";
+        }
+        else
+        {
+            var r = _rrResult;
+            if (!r.IsValid)
+            {
+                return "Fix validation errors above to generate a summary.";
+            }
+
+            return
+                $"{direction}\n\n" +
+                $"Entry       {_trade.EntryPrice.ToString("N" + decimals)}\n" +
+                $"Stop Loss   {_trade.StopLossPrice.ToString("N" + decimals)}\n" +
+                $"Take Profit {_trade.TakeProfitPrice.ToString("N" + decimals)}\n\n" +
+                $"Position Size: {_rrPositionSize:N2} units\n\n" +
+                $"Risk        ${r.PotentialLoss:N2}\n" +
+                $"Reward      ${r.PotentialProfit:N2}\n\n" +
+                $"Risk/Reward 1:{r.RiskRewardRatio:N2}\n" +
+                $"Break-even  {r.BreakEvenWinRatePercent:N2}%";
+        }
+    }
+
+    private async Task PersistStateAsync()
+    {
+        var state = new PersistedState
+        {
+            AccountBalance = _risk.AccountBalance,
+            RiskMode = _risk.Mode,
+            RiskPercent = _risk.RiskPercent,
+            RiskAmount = _risk.RiskAmount,
+            Leverage = _risk.Leverage,
+            InstrumentName = _instrument.Name,
+            PointSize = _instrument.PointSize,
+            PointValuePerLot = _instrument.PointValuePerLot,
+            ContractSize = _instrument.ContractSize,
+            PriceDecimals = _instrument.PriceDecimals,
+            Direction = _trade.Direction,
+            EntryPrice = _trade.EntryPrice,
+            StopLossPrice = _trade.StopLossPrice,
+            TakeProfitPrice = _trade.TakeProfitPrice
+        };
+
+        await LocalStorage.SaveAsync(StorageKey, state);
+    }
+
+    private void ApplyPersistedState(PersistedState s)
+    {
+        _risk.AccountBalance = s.AccountBalance;
+        _risk.Mode = s.RiskMode;
+        _risk.RiskPercent = s.RiskPercent;
+        _risk.RiskAmount = s.RiskAmount;
+        _risk.Leverage = s.Leverage;
+
+        _instrument.Name = s.InstrumentName;
+        _instrument.PointSize = s.PointSize;
+        _instrument.PointValuePerLot = s.PointValuePerLot;
+        _instrument.ContractSize = s.ContractSize;
+        _instrument.PriceDecimals = s.PriceDecimals;
+
+        _trade.Direction = s.Direction;
+        _trade.EntryPrice = s.EntryPrice;
+        _trade.StopLossPrice = s.StopLossPrice;
+        _trade.TakeProfitPrice = s.TakeProfitPrice;
+    }
+}
