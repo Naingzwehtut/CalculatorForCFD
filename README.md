@@ -50,13 +50,10 @@ visualization, and a "Trade Summary" you can copy to your clipboard.
 
 ## 3. Screenshots
 
-_Add screenshots here after running the app locally:_
-
-```
-docs/screenshot-position-size.png
-docs/screenshot-risk-reward.png
-docs/screenshot-mobile.png
-```
+<p align="center">
+  <img src="docs/screenshot-position-size.png" width="45%" />
+  <img src="docs/screenshot-risk-reward.png" width="45%" />
+</p>
 
 ## 4. Technology Stack
 
